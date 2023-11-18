@@ -2,21 +2,36 @@
 
 const express = require('express');
 const admin = require('../config/firebase-config');
+const db = admin.firestore();
 
 const router = express.Router();
 
 // Signup logic for officer users
 router.post('/officer/signup', async (req, res) => {
-
     try {
-        const { email, password } = req.body;
+        const { name, email, password, stationID } = req.body;
 
-        const user = await admin.auth().createUser({
+        // Create the user in Firebase Authentication
+        const userCredential = await admin.auth().createUser({
             email,
             password,
         });
 
-        res.status(200).send(user);
+        // Additional data to be stored in Firestore for the officer user
+        const userData = {
+            name,
+            email,
+            badge_num: "hui",
+            calibration_clip: null,
+            my_reports: [],
+            my_quizes: [],
+            stationID,
+        };
+
+        // Save user data to Firestore in the 'officers' collection
+        await db.collection('officers').doc(userCredential.uid).set(userData);
+
+        res.status(200).send({ message: 'Officer user created successfully', user: userCredential.user });
     } catch (error) {
         res.status(400).send(error);
     }

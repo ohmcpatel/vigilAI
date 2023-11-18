@@ -1,3 +1,5 @@
+// App.js
+
 import React from 'react';
 import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
 import StationSignUp from './pages/StationSignUp';
@@ -11,10 +13,15 @@ import OfficerReporting from './pages/OfficerReporting';
 import StationSettings from './pages/StationSettings';
 import OfficerSettings from './pages/OfficerSettings';
 import DefaultComponent from './pages/DefaultComponent';
+import Footer from './components/Footer';
+import Navbar from './components/Navbar'; // Import the Navbar component
+import StationCopAnalysis from './pages/StationCopAnalysis';
+import OfficerQuiz from './pages/OfficerQuiz';
 
 const App = () => {
   return (
     <Router>
+      <Navbar /> {/* Include the Navbar component */}
       <Switch>
         {/* Authentication Pages */}
         <Route path="/station/signup" component={StationSignUp} />
@@ -24,6 +31,7 @@ const App = () => {
 
         {/* Station User Pages */}
         <Route path="/station/dashboard" component={StationDashboard} />
+        <Route path="/station/officers" component={StationCopAnalysis}/>
         <Route path="/station/reporting" component={StationReporting} />
         <Route path="/station/settings" component={StationSettings} />
 
@@ -31,10 +39,13 @@ const App = () => {
         <Route path="/officer/dashboard" component={OfficerDashboard} />
         <Route path="/officer/reporting" component={OfficerReporting} />
         <Route path="/officer/settings" component={OfficerSettings} />
+        <Route path="/officer/quiz" component={OfficerQuiz} />
 
         {/* Default or 404 */}
         <Route path="/" component={DefaultComponent} />
       </Switch>
+      {/* Footer */}
+      <Footer />
     </Router>
   );
 };

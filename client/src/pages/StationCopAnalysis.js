@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
 import ReportCard from '../components/ReportCard';
-import './OfficerDashboard.css'; // Import your CSS file
+import './StationDashboard.css'; // Import your CSS file
 
-function OfficerDashboard() {
+function StationCopAnalysis() {
   const [reportData, setReportData] = useState([]);
   const [quizData, setQuizData] = useState([]);
   const [showModal, setShowModal] = useState(false); // State to manage modal visibility
@@ -52,28 +52,37 @@ function OfficerDashboard() {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Perform API call for submitting the report data
-    fetch('http://localhost:3001/station/addReport', {
-      method: 'POST',
-      body: JSON.stringify(reportDetails),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-      .then(response => response.json())
-      .then(data => {
-        // Handle successful response
+  
+    const formData = new FormData();
+    formData.append('name', reportDetails.name);
+    formData.append('date', reportDetails.date);
+    formData.append('number', reportDetails.number);
+    formData.append('video', reportDetails.video);
+  
+    try {
+      const response = await fetch('http://localhost:3001/station/addReport', {
+        method: 'POST',
+        body: formData,
+      });
+  
+      if (response.ok) {
+        const data = await response.json();
         console.log('Report submitted:', data);
-        setShowModal(false); // Close the modal after successful submission
-      })
-      .catch(error => console.error('Error submitting report:', error));
+        setShowModal(false);
+      } else {
+        throw new Error('Failed to submit report');
+      }
+    } catch (error) {
+      console.error('Error submitting report:', error);
+    }
   };
+  
 
   return (
     <div className="dashboard-container">
-      <h2 className='title'>"Cop Name's" Reports</h2>
+      <h2>"Cop Name's" Reports</h2>
       <div className="reports-scroll-container">
         <div className="reports-list">
           {reportData.map((report, index) => (
@@ -104,7 +113,7 @@ function OfficerDashboard() {
       {showModal && (
         <div className="modal-overlay">
           <div className="modal-content">
-          <span className="close-modal" onClick={handleCloseModal}>&times;</span> {<button onClick={handleCloseModal}>Close</button>}
+            <span className="close-modal" onClick={handleCloseModal}>&times;</span>
             <h3>Add Report</h3>
             <form onSubmit={handleSubmit}>
               <div className="form-group">
@@ -132,4 +141,12 @@ function OfficerDashboard() {
   );
 }
 
-export default OfficerDashboard;
+export default StationCopAnalysis;
+
+
+
+
+
+
+
+

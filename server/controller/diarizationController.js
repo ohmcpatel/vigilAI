@@ -1,8 +1,44 @@
+const ffmpeg = require('fluent-ffmpeg');
+const fs = require('fs');
+const { Storage } = require('@google-cloud/storage');
 
 const diarizationController = async (req, res, client) => {
   try {
     const { uri } = req.body;
 
+    // Output path for the extracted audio
+    const path = require('path')
+    const cwd = path.join(__dirname, '..')
+    const destFileName = path.join(cwd, 'downloaded.mp4')
+    const outputFileName = path.join(cwd, 'output.wav')
+
+
+    // Configure Google Cloud Storage
+    const storage = new Storage();
+    const bucketName = 'atlanta_pd';
+    const fileName = 'Billy/BillyPDBeat.mp4';
+
+    console.log("Do I get here")
+
+    // Download the video from Google Cloud Storage
+    await storage.bucket(bucketName).file(fileName).download({ destination: destFileName });
+
+    console.log("FUCK YEAH")
+
+
+    // Extract audio from video using ffmpeg
+    await new Promise((resolve, reject) => {
+      ffmpeg()
+        .input(destFileName)
+        .audioCodec('pcm_s16le')
+        .audioChannels(1)
+        .audioFrequency(8000)
+        .on('end', resolve)
+        .on('error', reject)
+        .save(outputFileName) // Define the output file path here
+    });
+
+    console.log("AM I HERE")
     const config = {
       encoding: 'LINEAR16',
       sampleRateHertz: 8000,
@@ -14,7 +50,7 @@ const diarizationController = async (req, res, client) => {
     };
 
     const audio = {
-      uri: uri,
+      content: fs.readFileSync(outputFileName).toString('base64'),
     };
 
     const request = {
@@ -23,6 +59,8 @@ const diarizationController = async (req, res, client) => {
     };
 
     const [response] = await client.recognize(request);
+    console.log(response);
+
     const transcription = response.results
       .map(result => result.alternatives[0].transcript)
       .join('\n');
@@ -42,5 +80,4 @@ const diarizationController = async (req, res, client) => {
   }
 };
 
-module.exports = diarizationController
-
+module.exports = diarizationController;
