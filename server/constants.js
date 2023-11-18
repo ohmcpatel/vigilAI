@@ -1,0 +1,1 @@
+SERVICE_ACCOUNT_KEY_FIREBASE = "firebase-adminsdk-4z75p@vigilai-110d5.iam.gserviceaccount.com"

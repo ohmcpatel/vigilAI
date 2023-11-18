@@ -1,29 +1,25 @@
-const speech = require('@google-cloud/speech').v1;
+const express = require('express');
+const bodyParser = require('body-parser');
+const transcriptionController = require('./controllers/transcriptionController');
 
-// Creates a client
-const client = new speech.SpeechClient();
+const app = express();
+const port = 3000;
 
-const config = {
-  encoding: 'LINEAR16',
-  languageCode: 'en-US',
-  audioChannelCount: 2,
-  enableSeparateRecognitionPerChannel: true,
-};
+app.use(bodyParser.json());
 
-const audio = {
-  uri: gcsUri,
-};
+app.post('/transcribe', async (req, res) => {
+  try {
+    const gcsUri = req.body.gcsUri;
+    const transcription = await transcriptionController.transcribeSpeech(gcsUri);
 
-const request = {
-  config: config,
-  audio: audio,
-};
+    console.log(`Transcription: \n${transcription}`);
+    res.status(200).json({ transcription });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
 
-const [response] = await client.recognize(request);
-const transcription = response.results
-  .map(
-    result =>
-      ` Channel Tag: ${result.channelTag} ${result.alternatives[0].transcript}`
-  )
-  .join('\n');
-console.log(`Transcription: \n${transcription}`);
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
+});

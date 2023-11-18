@@ -1,46 +1,28 @@
-const { VideoIntelligenceServiceClient } = require('@google-cloud/video-intelligence');
-const fs = require('fs');
+const express = require('express');
+const videoAnnotationController = require('./videoAnnotationController');
 
-async function annotateVideo() {
-  // Replace with the actual path to your video file on Google Cloud Storage
-  const inputUri = 'gs://path/to/your/video.mp4';
+const app = express();
+const port = process.env.PORT || 3000; // Use environment variable for port
 
-  // Replace with the path to your service account key file
-  const keyFilePath = 'path/to/keyfile.json';
+app.use(express.json());
 
-  // Create a Video Intelligence client with your key file
-  const client = new VideoIntelligenceServiceClient({
-    keyFilename: keyFilePath,
-  });
-
-  // Specify the features you want to annotate (LABEL_DETECTION, SHOT_CHANGE_DETECTION, etc.)
-  const features = ['LABEL_DETECTION'];
-
-  // Create a request object
-  const request = {
-    inputUri: inputUri,
-    features: features,
-  };
-
+app.post('/annotateVideo', async (req, res) => {
   try {
-    // Call the annotateVideo method
-    const [operation] = await client.annotateVideo(request);
+    const { inputUri, keyFilePath } = req.body;
+    
+    // Validate input
+    if (!inputUri || !keyFilePath) {
+      return res.status(400).json({ error: 'Bad Request', details: 'Missing inputUri or keyFilePath' });
+    }
 
-    // Wait for the operation to complete
-    const [operationResult] = await operation.promise();
-
-    // Process the results
-    const annotations = operationResult.annotationResults;
-    annotations.forEach(annotation => {
-      console.log('Annotation Description:', annotation.displayName);
-      annotation.segments.forEach(segment => {
-        console.log('Start Time:', segment.startTimeOffset.seconds + '.' + segment.startTimeOffset.nanos / 1e9);
-        console.log('End Time:', segment.endTimeOffset.seconds + '.' + segment.endTimeOffset.nanos / 1e9);
-      });
-    });
-  } catch (err) {
-    console.error('Error:', err.message);
+    const results = await videoAnnotationController.annotateVideo(inputUri, keyFilePath);
+    res.json({ results });
+  } catch (error) {
+    console.error('Error:', error.message);
+    res.status(500).json({ error: 'Internal Server Error', details: error.message });
   }
-}
+});
 
-annotateVideo();
+app.listen(port, () => {
+  console.log(`Server is running on http://localhost:${port}`);
+});
