@@ -7,6 +7,7 @@ router.post('/transcribe', async (req, res) => {
     try {
       // Call your existing controller function passing req, res, and client
       await diarizationController(req, res);
+
     } catch (error) {
       console.error('Error:', error.message);
       res.status(700).json({ error: 'Internal Server Error' });

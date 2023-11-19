@@ -29,9 +29,9 @@ function OfficerQuiz() {
   return ( 
   <div>
     <ReactQuiz 
-    questionsArray={questionsArray}
-    choicesArray={choicesArray}
-    correctAnswersArray={correctAnswersArray}/>
+    questions={questionsArray}
+    choices={choicesArray}
+    correctAnswers={correctAnswersArray}/>
   </div>
   );
 }

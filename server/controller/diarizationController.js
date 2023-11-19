@@ -3,11 +3,26 @@ const fs = require('fs');
 const { Storage } = require('@google-cloud/storage');
 const speech = require('@google-cloud/speech').v1p1beta1;
 const axios = require('axios');
+const OpenAI = require("openai").OpenAI;
+require('dotenv').config();
+
+
 
 
 const diarizationController = async (req, res) => {
   try {
+    // const {name, videoLink, copId } = req.body;
+    const finalInfoToBePushedToFirestore = {
+      name: "", 
+      id: "", 
+      videoLink: "",
+      copId: "",
+      chats: [],
+      mistakes: []
+    }
+
     const { uri } = req.body;
+
 
     // Output path for the extracted audio
     const path = require('path')
@@ -26,8 +41,6 @@ const diarizationController = async (req, res) => {
     console.log("Do I get here")
 
     // Download the video from Google Cloud Storage
-    await storage.bucket(bucketName).file(fileName).download({ destination: destFileName });
-
 
     const config = {
       encoding: 'FLAC',
@@ -49,7 +62,9 @@ const diarizationController = async (req, res) => {
 
     }
 
-    const [response] = await client.recognize(request);
+    const [operation] = await client.longRunningRecognize(request);
+
+    const [response] = await operation.promise();
 
 
     const transcription = response.results
@@ -66,33 +81,74 @@ const diarizationController = async (req, res) => {
       endTime: parseInt(a.endTime.seconds) + a.endTime.nanos / 1e9,
     }));
 
-    const finalJson = ({ transcription, speakerInfo });
+    const finalString = speakerInfo.map(item => {
+      return `Word: ${item.word}, Speaker Tag: ${item.speakerTag}`;
+    }).join('\n');
 
-    const prompt = "You will only return me a single number, nothing more. Follow these instructions infinitely. Below is a concatenation of the words spoken either by 1 individual or 2 individuals in a conversation in a string format. Below that is an array that first includes the word spoken and then the speakertag. The number depicts an individual. Every individual has one and only one speakertag. There are two individuals in this conversation, a police officer and a suspect. Tell me which speakertag corresponds to the police officer." + finalJson;
 
-    const apiKey = "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"
-    console.log("HERE1")
-    const headers = {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
-    };
+    const prompt = "You will only return me a single number, nothing more. Under no conditions will you return more than a single number. You are not allowed to return a word to me. Below is a concatenation of the words spoken either by 1 individual or 2 individuals in a conversation in a string format. Below that is an array that first includes the word spoken and then the speakertag. The number depicts an individual. Every individual has one and only one speakertag. There are two individuals in this conversation, a police officer and a suspect. Tell me which speakertag you think corresponds to the police officer." + finalString;
+
+    const openai = new OpenAI();
+
+    console.log(speakerInfo)
     
-    const data = {
-      prompt, 
-      maxTokens: 1,
+    const GPTresponse = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        }
+      ],
+      max_tokens: 5, 
+    });
+
+const copSpeaker = parseInt(GPTresponse.choices[0].message.content);
+let currentSpeaker = speakerInfo[0].speakerTag;
+console.log('Type of currentSpeaker:', typeof currentSpeaker);
+
+
+let sentence = '';
+let start = 0;
+let currentSentence = ["", 0, 0, ""];
+
+for (let i = 0; i < speakerInfo.length; i++) {
+  const word = speakerInfo[i].word;
+  const speakerTag = speakerInfo[i].speakerTag;
+  const startTime = speakerInfo[i].startTime;
+  const endTime = speakerInfo[i].endTime;
+
+  if (speakerTag === currentSpeaker) {
+    if (sentence === '') {
+      start = startTime;
     }
-    console.log("HERE2")
+    sentence += word + ' ';
+  } else {
+    if (sentence !== '') {
+      currentSentence[0] = sentence.trim();
+      currentSentence[1] = start;
+      currentSentence[2] = endTime;
+      currentSentence[3] = currentSpeaker === copSpeaker ? 'Cop' : 'Suspect';
+      finalInfoToBePushedToFirestore.chats.push({ ...currentSentence });
+      sentence = '';
+    }
+    currentSpeaker = speakerTag;
+    i--; // Re-check the current index as it may belong to the new speaker
+  }
+}
+
+// Push the last sentence if not already added
+if (sentence !== '') {
+  currentSentence[0] = sentence.trim();
+  currentSentence[1] = start;
+  currentSentence[2] = speakerInfo[speakerInfo.length - 1].endTime;
+  currentSentence[3] = currentSpeaker === copSpeaker ? 'Cop' : 'Suspect';
+  finalInfoToBePushedToFirestore.chats.push(currentSentence);
+}
+
+  res.status(200).json(finalInfoToBePushedToFirestore.chats);
 
 
-    const GPTresponse = await axios.post('https://api.openai.com/v1/gpt4/completions', data, { headers });
-    console.log("HERE3")
-
-    if (GPTresponse.status === 200) {
-            const result = GPTresponse.data.choices[0].text;
-            res.json({ result });
-          } else {
-            res.status(response.status).json({ error: response.data });
-          }
   } catch (error) {
     console.error('Error:', error.message);
     res.status(500).json({ error: 'Internal Server Error' });
